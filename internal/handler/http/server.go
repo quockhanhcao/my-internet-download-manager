@@ -24,7 +24,7 @@ func NewServer() Server {
 func (s *server) Start(ctx context.Context) error {
 	mux := runtime.NewServeMux()
 	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
-	err := go_load.RegisterGoLoadServiceHandlerFromEndpoint(ctx, mux, "/api", opts)
+	err := go_load.RegisterGoLoadServiceHandlerFromEndpoint(ctx, mux, "0.0.0.0:8080", opts)
 	if err != nil {
 		return err
 	}

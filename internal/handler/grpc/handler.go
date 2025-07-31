@@ -4,20 +4,33 @@ import (
 	"context"
 
 	"github.com/quockhanhcao/my-internet-download-manager/internal/generated/grpc/go_load"
+	"github.com/quockhanhcao/my-internet-download-manager/internal/logic"
 	"google.golang.org/grpc"
 )
 
 type Handler struct {
 	go_load.UnimplementedGoLoadServiceServer
+	accountHandler logic.AccountHandler
 }
 
 func NewHandler() go_load.GoLoadServiceServer {
 	return &Handler{}
 }
 
-func (h *Handler) CreateAccount(context.Context, *go_load.CreateAccountRequest) (*go_load.CreateAccountResponse, error) {
-	// Implement the logic for creating an account
-	return nil, nil
+func (h Handler) CreateAccount(ctx context.Context, request *go_load.CreateAccountRequest) (*go_load.CreateAccountResponse, error) {
+	output, err := h.accountHandler.CreateAccount(
+		ctx,
+		logic.CreateAccountParams{
+			AccountName: request.GetAccountName(),
+			Password:    request.GetPassword(),
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &go_load.CreateAccountResponse{
+		AccountId: output.ID,
+	}, nil
 }
 
 func (h *Handler) CreateSession(context.Context, *go_load.CreateSessionRequest) (*go_load.CreateSessionResponse, error) {
