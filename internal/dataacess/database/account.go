@@ -13,47 +13,47 @@ type Account struct {
 }
 
 type AccountDataAccessor interface {
-	CreateAccount(ctx context.Context, account Account) (uint64, error)
+	CreateAccount(ctx context.Context, accountName string, password string) (uint64, error)
 	GetAccountByID(ctx context.Context, id uint64) (Account, error)
 	GetAccountByAccountName(ctx context.Context, accountName string) (Account, error)
 	WithDatabase(database Database) AccountDataAccessor
 }
-
-type accountAccessor struct {
+type accountDataAccessor struct {
 	database Database
 }
 
-// CreateAccount implements AccountAccessor.
-func (a *accountAccessor) CreateAccount(ctx context.Context, account Account) (uint64, error) {
-	result, err := a.database.Insert("accounts").Rows(goqu.Record{
-		"account_name": account.AccountName,
-	}).Executor().ExecContext(ctx)
-	if err != nil {
-		log.Printf("error creating account: %v", err)
-		return 0, err
-	}
-	lastInsertID, err := result.LastInsertId()
-	if err != nil {
-		log.Printf("error getting last insert ID: %v", err)
-		return 0, err
-	}
-	return uint64(lastInsertID), nil
-}
-
-// GetAccountByID implements AccountAccessor.
-func (a *accountAccessor) GetAccountByID(ctx context.Context, id uint64) (Account, error) {
-	panic("unimplemented")
-}
-
-// GetAccountByAccountName implements AccountAccessor.
-func (a *accountAccessor) GetAccountByAccountName(ctx context.Context, accountName string) (Account, error) {
-	panic("unimplemented")
-}
-
 func NewAccountDataAccessor(database *goqu.Database) AccountDataAccessor {
-	return &accountAccessor{database}
+	return &accountDataAccessor{
+		database: database,
+	}
 }
 
-func (a *accountAccessor) WithDatabase(database Database) AccountDataAccessor {
-	return &accountAccessor{database: database}
+func (a accountDataAccessor) CreateAccount(ctx context.Context, accountName string, password string) (uint64, error) {
+	result, err := a.database.Insert("accounts").Rows(goqu.Record{
+		"account_name": accountName,
+	}).Executor().Exec()
+	if err != nil {
+		log.Println("error inserting account:", err)
+		return 0, err
+	}
+	accountID, err := result.LastInsertId()
+	if err != nil {
+		log.Println("error getting last insert ID:", err)
+		return 0, err
+	}
+	return uint64(accountID), nil
+}
+
+func (a accountDataAccessor) GetAccountByAccountName(ctx context.Context, accountName string) (Account, error) {
+	return Account{}, nil // Placeholder for actual implementation
+}
+
+func (a accountDataAccessor) GetAccountByID(ctx context.Context, id uint64) (Account, error) {
+	panic("unimplemented")
+}
+
+func (a accountDataAccessor) WithDatabase(database Database) AccountDataAccessor {
+	return &accountDataAccessor{
+		database: database,
+	}
 }

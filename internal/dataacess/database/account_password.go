@@ -2,19 +2,14 @@ package database
 
 import (
 	"context"
+	"log"
 
 	"github.com/doug-martin/goqu/v9"
 )
 
-type AccountPassword struct {
-	OfAccountID uint64 `sql:"of_account_id"`
-	Hash        string `sql:"hash"`
-}
-
 type AccountPasswordDataAccessor interface {
-	CreateAccountPassword(ctx context.Context, accountPassword AccountPassword) error
-	GetAccountPasswordByAccountID(ctx context.Context, ofAccountID uint64) (AccountPassword, error)
-	UpdateAccountPassword(ctx context.Context, ofAccountID uint64, hash string) error
+	CreateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error
+	UpdateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error
     WithDatabase(database Database) AccountPasswordDataAccessor
 }
 
@@ -22,25 +17,28 @@ type accountPasswordAccessor struct {
 	database Database
 }
 
-// UpdateAccountPassword implements AccountPasswordDataAccessor.
-func (a *accountPasswordAccessor) UpdateAccountPassword(ctx context.Context, ofAccountID uint64, hash string) error {
-	panic("unimplemented")
-}
-
-// CreateAccountPassword implements AccountPasswordDataAccessor.
-func (a *accountPasswordAccessor) CreateAccountPassword(ctx context.Context, accountPassword AccountPassword) error {
-	panic("unimplemented")
-}
-
-// GetAccountPasswordByAccountID implements AccountPasswordDataAccessor.
-func (a *accountPasswordAccessor) GetAccountPasswordByAccountID(ctx context.Context, ofAccountID uint64) (AccountPassword, error) {
-	panic("unimplemented")
-}
-
-func (a *accountPasswordAccessor) WithDatabase(database Database) AccountPasswordDataAccessor {
-	return &accountPasswordAccessor{database: database}
-}
-
 func NewAccountPasswordDataAccessor(database *goqu.Database) AccountPasswordDataAccessor {
 	return &accountPasswordAccessor{database: database}
+}
+
+func (a *accountPasswordAccessor) UpdateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error {
+	panic("unimplemented")
+}
+
+func (a accountPasswordAccessor) CreateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error {
+	_, err := a.database.Insert("account_passwords").Rows(goqu.Record{
+		"of_account_id": accountID,
+		"hash":          passwordHash,
+	}).Executor().Exec()
+	if err != nil {
+		log.Print("error inserting account password:", err)
+		return err
+	}
+	return nil
+}
+
+func (a accountPasswordAccessor) WithDatabase(database Database) AccountPasswordDataAccessor {
+	return &accountPasswordAccessor{
+		database: database,
+	}
 }

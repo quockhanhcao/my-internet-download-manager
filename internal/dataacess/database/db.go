@@ -39,31 +39,22 @@ type Database interface {
 	Update(table interface{}) *goqu.UpdateDataset
 }
 
-func InitializeDB(databaseConfig configs.Database) (db *sql.DB, cleanup func(), err error) {
-	dsn := fmt.Sprintf(
-		"%s:%s@tcp(%s:%d)/%s",
-		databaseConfig.Username, databaseConfig.Password, databaseConfig.Host, databaseConfig.Port, databaseConfig.Database,
-	)
+func InitGoquDB(database *sql.DB) *goqu.Database {
+	return goqu.New("mysql", database)
+}
 
-	db, err = sql.Open("mysql", dsn)
+func InitializeDB(config configs.Database) (*sql.DB, func(), error) {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", config.Username, config.Password, config.Host, config.Port, config.Database)
+	db, err := sql.Open("mysql", dsn)
 	if err != nil {
-		log.Printf("error opening database connection: %v", err)
+		log.Print("Failed to connect to MySQL:", err)
 		return nil, nil, err
 	}
 
-	// Ping to confirm connection is valid
-	if err := db.Ping(); err != nil {
-		log.Printf("error pinging database: %v", err)
-		return nil, nil, err
-	}
-
-	cleanup = func() {
+	cleanup := func() {
 		db.Close()
 	}
 
+	log.Println("Connected to MySQL successfully.")
 	return db, cleanup, nil
-}
-
-func InitializeGoquDB(db *sql.DB) *goqu.Database {
-	return goqu.New("mysql", db)
 }

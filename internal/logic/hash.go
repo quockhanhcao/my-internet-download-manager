@@ -1,7 +1,6 @@
 package logic
 
 import (
-	"context"
 	"errors"
 	"log"
 
@@ -10,36 +9,37 @@ import (
 )
 
 type Hash interface {
-	Hash(ctx context.Context, payload string) (string, error)
-	IsHashEqual(ctx context.Context, hash, data string) (bool, error)
+	HashPassword(password string) (string, error)
+	IsHashEqual(hashedPassword, password string) (bool, error)
 }
 
 type hash struct {
-	accountConfig configs.AccountConfig
+	accountConfigs configs.AccountConfig
 }
 
-func NewHash(accountConfig configs.AccountConfig) Hash {
+func NewHash(accountConfigs configs.AccountConfig) Hash {
 	return &hash{
-		accountConfig: accountConfig,
+		accountConfigs: accountConfigs,
 	}
 }
 
-func (h *hash) Hash(ctx context.Context, payload string) (string, error) {
-	result, err := bcrypt.GenerateFromPassword([]byte(payload), h.accountConfig.HashCost)
+func (h hash) HashPassword(password string) (string, error) {
+	bcryptHash, err := bcrypt.GenerateFromPassword([]byte(password), h.accountConfigs.HashCost)
 	if err != nil {
-		log.Printf("error hashing password: %v", err)
+		log.Print("error hashing password:", err)
 		return "", err
 	}
-	return string(result), nil
+	return string(bcryptHash), nil
 }
 
-func (h *hash) IsHashEqual(ctx context.Context, hash string, data string) (bool, error) {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(data))
+func (h hash) IsHashEqual(hashedPassword, password string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			log.Print("passwords do not match:", err)
 			return false, nil
 		}
-		log.Printf("error comparing hash: %v", err)
+		log.Print("error comparing hashed password", err)
 		return false, err
 	}
 	return true, nil

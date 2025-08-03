@@ -4,20 +4,19 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/quockhanhcao/my-internet-download-manager/internal/dataacess/database"
 )
 
+type Account struct {
+	AccountID   uint64
+	AccountName string
+}
+
 type CreateAccountParams struct {
 	AccountName string
 	Password    string
-}
-
-type Account struct {
-	ID          uint64
-	AccountName string
 }
 
 type CreateSessionParams struct {
@@ -36,33 +35,32 @@ type AccountHandler interface {
 }
 
 type accountHandler struct {
-	accountDataAccessor     database.AccountDataAccessor
-	accountPasswordAccessor database.AccountPasswordDataAccessor
-	hash                    Hash
-	goquDatabase            *goqu.Database
+	accountDataAccessor         database.AccountDataAccessor
+	accountPasswordDataAccessor database.AccountPasswordDataAccessor
+	hash                        Hash
+	goquDatabase                *goqu.Database
 }
 
 func NewAccountHandler(
 	accountDataAccessor database.AccountDataAccessor,
-	accountPasswordAccessor database.AccountPasswordDataAccessor,
+	accountPasswordDataAccessor database.AccountPasswordDataAccessor,
 	hash Hash,
 	goquDatabase *goqu.Database,
 ) AccountHandler {
 	return &accountHandler{
-		goquDatabase:            goquDatabase,
-		accountDataAccessor:     accountDataAccessor,
-		accountPasswordAccessor: accountPasswordAccessor,
-		hash:                    hash,
+		accountDataAccessor:         accountDataAccessor,
+		accountPasswordDataAccessor: accountPasswordDataAccessor,
+		hash:                        hash,
+		goquDatabase:                goquDatabase,
 	}
 }
 
-func (a accountHandler) isAccountNameTaken(ctx context.Context, accountName string) (bool, error) {
+func (a accountHandler) isAccountExisted(ctx context.Context, accountName string) (bool, error) {
 	_, err := a.accountDataAccessor.GetAccountByAccountName(ctx, accountName)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
 		}
-		log.Printf("error checking account name: %v", err)
 		return false, err
 	}
 	return true, nil
@@ -70,46 +68,36 @@ func (a accountHandler) isAccountNameTaken(ctx context.Context, accountName stri
 
 func (a accountHandler) CreateAccount(ctx context.Context, params CreateAccountParams) (Account, error) {
 	var accountID uint64
-	txErr := a.goquDatabase.WithTx(func(td *goqu.TxDatabase) error {
-		accountNameTaken, err := a.isAccountNameTaken(ctx, params.AccountName)
+	txErr := a.goquDatabase.WithTx(func(tx *goqu.TxDatabase) error {
+		accountNameTaken, err := a.isAccountExisted(ctx, params.AccountName)
 		if err != nil {
 			return err
 		}
 		if accountNameTaken {
-			log.Printf("account name %s is already taken", params.AccountName)
-			return errors.New("account name is already taken")
+			return errors.New("account name already taken")
 		}
-		// insert into account table
-		accountID, err = a.accountDataAccessor.WithDatabase(td).CreateAccount(ctx, database.Account{AccountName: params.AccountName})
-		if err != nil {
-			log.Printf("error creating account: %v", err)
-			return err
-		}
-		hashPassword, err := a.hash.Hash(ctx, params.Password)
+
+		accountID, err = a.accountDataAccessor.WithDatabase(tx).CreateAccount(ctx, params.AccountName, params.Password)
 		if err != nil {
 			return err
 		}
-		err = a.accountPasswordAccessor.WithDatabase(td).CreateAccountPassword(ctx, database.AccountPassword{
-			OfAccountID: accountID,
-			Hash:        string(hashPassword),
-		})
+
+		hashedPassword, err := a.hash.HashPassword(params.Password)
 		if err != nil {
-			log.Printf("error creating account password: %v", err)
 			return err
 		}
+		a.accountPasswordDataAccessor.WithDatabase(tx).CreateAccountPassword(ctx, accountID, hashedPassword)
 		return nil
 	})
 	if txErr != nil {
-		log.Printf("transaction error: %v", txErr)
 		return Account{}, txErr
 	}
 	return Account{
-		ID:          accountID,
+		AccountID:   accountID,
 		AccountName: params.AccountName,
 	}, nil
 }
 
 func (a accountHandler) CreateSession(ctx context.Context, params CreateSessionParams) (CreateSessionResponse, error) {
-	// Implementation for creating a session
-	return CreateSessionResponse{}, nil
+	panic("unimplemented")
 }

@@ -17,9 +17,7 @@ type server struct {
 }
 
 func NewServer(handler go_load.GoLoadServiceServer) Server {
-	return &server{
-		handler: handler,
-	}
+	return &server{handler: handler}
 }
 
 func (s *server) Start(ctx context.Context) error {
@@ -30,7 +28,7 @@ func (s *server) Start(ctx context.Context) error {
 
 	defer listener.Close()
 
-	server := grpc.NewServer()
-	go_load.RegisterGoLoadServiceServer(server, s.handler)
-	return server.Serve(listener)
+	grpcServer := grpc.NewServer()
+	go_load.RegisterGoLoadServiceServer(grpcServer, s.handler)
+	return grpcServer.Serve(listener)
 }
