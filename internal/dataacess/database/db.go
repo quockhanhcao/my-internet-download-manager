@@ -39,11 +39,11 @@ type Database interface {
 	Update(table interface{}) *goqu.UpdateDataset
 }
 
-func InitGoquDB(database *sql.DB) *goqu.Database {
+func InitializeGoquDB(database *sql.DB) *goqu.Database {
 	return goqu.New("mysql", database)
 }
 
-func InitializeDB(config configs.Database) (*sql.DB, func(), error) {
+func InitializeDB(config configs.DatabaseConfig) (*sql.DB, func(), error) {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?parseTime=true", config.Username, config.Password, config.Host, config.Port, config.Database)
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {

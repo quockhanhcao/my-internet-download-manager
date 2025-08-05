@@ -9,14 +9,20 @@ require (
 	google.golang.org/protobuf v1.36.6
 )
 
-require filippo.io/edwards25519 v1.1.0 // indirect
+require (
+	filippo.io/edwards25519 v1.1.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
+	github.com/rogpeppe/go-internal v1.14.1 // indirect
+)
 
 require (
 	github.com/go-sql-driver/mysql v1.9.3
+	github.com/google/wire v0.6.0
 	golang.org/x/crypto v0.40.0
 	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
+	gopkg.in/yaml.v3 v3.0.1
 )

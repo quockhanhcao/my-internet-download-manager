@@ -1,0 +1,50 @@
+Từ file .proto, định nghĩa những API trong hệ thống
+
+grpc gateway sinh ra 1 file grpc-gateway, file này đóng vai trò định nghĩa 1 reverse proxy
+client bên ngoài vẫn tương tác với hệ thống thông qua restful api
+
+1 file grpc stub, định nghĩa 1 grpc server bên trong
+
+việc cần làm:
+    viết 1 http server để phục vụ client bên ngoài
+    viết 1 grpc server để phục vụ logic bên trong hệ thống
+
+Viết http server:
+    Nhìn vào file pb.gw.go, sẽ thấy nó đóng vai trò là 1 lớp reverse proxy, chuyển đổi http/json requests thành grpc call tới server
+
+    Phải tạo 1 http server, và đăng ký các handler từ file pb.gw.go vào http server đó
+    trong package internal, tạo 1 folder handler
+    trong đó tạo tiếp 1 folder http cho http server
+    trong đó tạo 1 file server.go
+    và triển khai 1 http server
+
+    trong file này, nên khai báo 1 interface Server (tác dụng của sử dụng interface sẽ được giải thích sau)
+    interface này sẽ có 1 hàm Start, hàm này nhận vào 1 context và trả về 1 error
+
+    tiếp đó khai báo 1 server struct và implement interface đó
+
+    tạo 1 hàm để tạo 1 instance của struct server này, đóng vai trò như là constructor
+
+    trong hàm Start, sẽ tạo 1  server mux, và đăng ký mux này với grpc gateway
+    hàm đăng ký được sử dụng là hàm RegisterGoLoadServiceHandlerFromEndpoint
+
+
+Viết grpc server:
+    với grpc server, nhìn vào file grpc.pb.go
+    Tương tự như http server, trong package internal, tạo 1 folder handler
+    trong đó tạo tiếp 1 folder grpc cho grpc server
+    trong đó tạo 1 file server.go
+    và triển khai 1 grpc server
+
+    trong file này, cũng nên khai báo 1 interface Server (tác dụng của sử dụng interface sẽ được giải thích sau)
+    interface này sẽ có 1 hàm Start, hàm này nhận vào 1 context và trả về 1 error
+
+    tiếp đó khai báo 1 server struct và implement interface đó, struct này sẽ có 1 handler kiểu GoLoadServiceServer
+
+    tạo 1 hàm để tạo 1 instance của struct server này, đóng vai trò như là constructor
+
+    trong hàm Start, sẽ tạo 1 tcp server, và 1 grpc server, grpc server sẽ listen trên tcp server
+    phải đăng ký grpc handler với grpc server, sử dụng hàm RegisterGoLoadServiceServer
+    khi có request đến GoLoadService, phải điều hướng request đến handler tương ứng
+
+    sau đó, cần handler cho grpc server này, handler này sẽ implement các phương thức trong GoLoadServiceServer

@@ -7,3 +7,5 @@ generate:
 		--openapiv2_out . \
 		--openapiv2_opt generate_unbound_methods=true \
 		api/go_load.proto
+
+	wire internal/wiring/wire.go
