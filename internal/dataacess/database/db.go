@@ -9,6 +9,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/quockhanhcao/my-internet-download-manager/internal/configs"
+    _ "gopkg.in/doug-martin/goqu.v5/adapters/mysql"
 )
 
 type Database interface {

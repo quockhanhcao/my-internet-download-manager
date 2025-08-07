@@ -24,33 +24,28 @@ type CreateSessionParams struct {
 	Password    string
 }
 
-type CreateSessionResponse struct {
-	Account Account
-	Token   string
-}
-
 type AccountHandler interface {
 	CreateAccount(ctx context.Context, params CreateAccountParams) (Account, error)
-	CreateSession(ctx context.Context, params CreateSessionParams) (CreateSessionResponse, error)
+	CreateSession(ctx context.Context, params CreateSessionParams) (token string, err error)
 }
 
 type accountHandler struct {
 	accountDataAccessor         database.AccountDataAccessor
 	accountPasswordDataAccessor database.AccountPasswordDataAccessor
-	hash                        Hash
+	hashHandler                 HashHandler
 	goquDatabase                *goqu.Database
 }
 
 func NewAccountHandler(
 	accountDataAccessor database.AccountDataAccessor,
 	accountPasswordDataAccessor database.AccountPasswordDataAccessor,
-	hash Hash,
+	hashHandler HashHandler,
 	goquDatabase *goqu.Database,
 ) AccountHandler {
 	return &accountHandler{
 		accountDataAccessor:         accountDataAccessor,
 		accountPasswordDataAccessor: accountPasswordDataAccessor,
-		hash:                        hash,
+		hashHandler:                 hashHandler,
 		goquDatabase:                goquDatabase,
 	}
 }
@@ -82,7 +77,7 @@ func (a accountHandler) CreateAccount(ctx context.Context, params CreateAccountP
 			return err
 		}
 
-		hashedPassword, err := a.hash.HashPassword(params.Password)
+		hashedPassword, err := a.hashHandler.HashPassword(ctx, params.Password)
 		if err != nil {
 			return err
 		}
@@ -98,6 +93,23 @@ func (a accountHandler) CreateAccount(ctx context.Context, params CreateAccountP
 	}, nil
 }
 
-func (a accountHandler) CreateSession(ctx context.Context, params CreateSessionParams) (CreateSessionResponse, error) {
-	panic("unimplemented")
+func (a accountHandler) CreateSession(ctx context.Context, params CreateSessionParams) (token string, err error) {
+	existingAccount, err := a.accountDataAccessor.GetAccountByAccountName(ctx, params.AccountName)
+	if err != nil {
+		return "", err
+	}
+	existingPassword, err := a.accountPasswordDataAccessor.GetAccountPasswordByAccountID(ctx, existingAccount.AccountID)
+	if err != nil {
+		return "", err
+	}
+	isHashEqual, err := a.hashHandler.IsHashEqual(ctx, existingPassword.Hash, params.Password)
+	if err != nil {
+		return "", err
+	}
+
+	if !isHashEqual {
+		return "", errors.New("incorrect password")
+	}
+
+	// generate a token
 }

@@ -1,6 +1,7 @@
 package logic
 
 import (
+	"context"
 	"errors"
 	"log"
 
@@ -8,22 +9,22 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type Hash interface {
-	HashPassword(password string) (string, error)
-	IsHashEqual(hashedPassword, password string) (bool, error)
+type HashHandler interface {
+	HashPassword(ctx context.Context, password string) (string, error)
+	IsHashEqual(ctx context.Context, hashedPassword, inputPassword string) (bool, error)
 }
 
 type hash struct {
 	accountConfigs configs.AccountConfig
 }
 
-func NewHash(accountConfigs configs.AccountConfig) Hash {
+func NewHashHandler(accountConfigs configs.AccountConfig) HashHandler {
 	return &hash{
 		accountConfigs: accountConfigs,
 	}
 }
 
-func (h hash) HashPassword(password string) (string, error) {
+func (h hash) HashPassword(ctx context.Context, password string) (string, error) {
 	bcryptHash, err := bcrypt.GenerateFromPassword([]byte(password), h.accountConfigs.HashCost)
 	if err != nil {
 		log.Print("error hashing password:", err)
@@ -32,8 +33,8 @@ func (h hash) HashPassword(password string) (string, error) {
 	return string(bcryptHash), nil
 }
 
-func (h hash) IsHashEqual(hashedPassword, password string) (bool, error) {
-	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+func (h hash) IsHashEqual(ctx context.Context, hash, data string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(data))
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
 			log.Print("passwords do not match:", err)

@@ -2,15 +2,28 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"log"
 
 	"github.com/doug-martin/goqu/v9"
 )
 
+const (
+	TableAccountPassword = "account_passwords"
+	ColOfAccountID       = "of_account_id"
+	ColHash              = "hash"
+)
+
+type AccountPassword struct {
+	OfAccountID uint64 `sql:"of_account_id"`
+	Hash        string `sql:"hash"`
+}
+
 type AccountPasswordDataAccessor interface {
 	CreateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error
 	UpdateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error
-    WithDatabase(database Database) AccountPasswordDataAccessor
+	GetAccountPasswordByAccountID(ctx context.Context, accountID uint64) (AccountPassword, error)
+	WithDatabase(database Database) AccountPasswordDataAccessor
 }
 
 type accountPasswordAccessor struct {
@@ -26,9 +39,9 @@ func (a *accountPasswordAccessor) UpdateAccountPassword(ctx context.Context, acc
 }
 
 func (a accountPasswordAccessor) CreateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error {
-	_, err := a.database.Insert("account_passwords").Rows(goqu.Record{
-		"of_account_id": accountID,
-		"hash":          passwordHash,
+	_, err := a.database.Insert(TableAccountPassword).Rows(goqu.Record{
+		ColOfAccountID: accountID,
+		ColHash:        passwordHash,
 	}).Executor().Exec()
 	if err != nil {
 		log.Print("error inserting account password:", err)
@@ -41,4 +54,23 @@ func (a accountPasswordAccessor) WithDatabase(database Database) AccountPassword
 	return &accountPasswordAccessor{
 		database: database,
 	}
+}
+
+func (a accountPasswordAccessor) GetAccountPasswordByAccountID(ctx context.Context, accountID uint64) (AccountPassword, error) {
+	var password AccountPassword
+	found, err := a.database.From(TableAccountPassword).
+		Select(ColOfAccountID, ColHash).
+		Where(goqu.Ex{ColOfAccountID: accountID}).
+		ScanStructContext(ctx, &password)
+
+	if err != nil {
+		log.Print("error getting account password:", err)
+		return AccountPassword{}, err
+	}
+
+	if !found {
+		return AccountPassword{}, sql.ErrNoRows
+	}
+
+	return password, nil
 }
