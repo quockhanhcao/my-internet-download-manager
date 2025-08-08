@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/doug-martin/goqu/v9 v9.19.0
+	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.1
 	google.golang.org/grpc v1.74.2
 	google.golang.org/protobuf v1.36.6

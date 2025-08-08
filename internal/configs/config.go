@@ -11,6 +11,7 @@ type ConfigFilePath string
 type Config struct {
 	AccountConfig  AccountConfig  `yaml:"account_config"`
 	DatabaseConfig DatabaseConfig `yaml:"database_config"`
+	AuthConfig     AuthConfig     `yaml:"auth_config"`
 }
 
 func NewConfig(filePath ConfigFilePath) (Config, error) {

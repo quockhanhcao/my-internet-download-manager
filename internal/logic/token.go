@@ -4,6 +4,10 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/quockhanhcao/my-internet-download-manager/internal/configs"
 	"time"
 )
 
@@ -18,6 +22,24 @@ type TokenHandler interface {
 
 type tokenHandler struct {
 	privateKey *rsa.PrivateKey
+	publicKey  []byte
+	authConfig configs.AuthConfig
+}
+
+func NewTokenHandler() TokenHandler {
+	privateKeyPair, err := generatePrivateKey(rsaKeyPairBitSize)
+	if err != nil {
+		return nil
+	}
+	pemPublicKey, err := encodePublicKeyToPEM(privateKeyPair)
+	if err != nil {
+		return nil
+	}
+
+	return &tokenHandler{
+		privateKey: privateKeyPair,
+		publicKey:  pemPublicKey,
+	}
 }
 
 func generatePrivateKey(bitSize int) (*rsa.PrivateKey, error) {
@@ -25,7 +47,24 @@ func generatePrivateKey(bitSize int) (*rsa.PrivateKey, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = privateKeyPair.Validate()
+	if err != nil {
+		return nil, err
+	}
 	return privateKeyPair, nil
+}
+
+func encodePublicKeyToPEM(privateKey *rsa.PrivateKey) ([]byte, error) {
+	publicKey := &privateKey.PublicKey
+	pubDER, err := x509.MarshalPKIXPublicKey(publicKey)
+	if err != nil {
+		return nil, err
+	}
+	pubBlock := pem.Block{
+		Type:  "PUBLIC KEY",
+		Bytes: pubDER,
+	}
+	return pem.EncodeToMemory(&pubBlock), nil
 }
 
 // GetAccountIDAndExpireTime implements TokenHandler.
@@ -35,15 +74,17 @@ func (t tokenHandler) GetAccountIDAndExpireTime(ctx context.Context, token strin
 
 // GetToken implements TokenHandler.
 func (t tokenHandler) GetToken(ctx context.Context, accountID uint64) (string, time.Time, error) {
-	panic("unimplemented")
-}
+	expireTime := time.Now().Add(t.authConfig.ExpireTime)
+	token := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.MapClaims{
+		"kid": t.publicKey,
+		"sub": accountID,
+		"exp": expireTime,
+	})
 
-func NewTokenHandler() TokenHandler {
-	privateKeyPair, err := generatePrivateKey(rsaKeyPairBitSize)
+	signedToken, err := token.SignedString(t.privateKey)
 	if err != nil {
-		return nil
+		return "", time.Time{}, err
+
 	}
-	return &tokenHandler{
-		privateKey: privateKeyPair,
-	}
+	return signedToken, expireTime, nil
 }
