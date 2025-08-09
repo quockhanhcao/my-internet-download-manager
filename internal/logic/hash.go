@@ -10,22 +10,22 @@ import (
 )
 
 type HashHandler interface {
-	HashPassword(ctx context.Context, password string) (string, error)
+	Hash(ctx context.Context, password string) (string, error)
 	IsHashEqual(ctx context.Context, hashedPassword, inputPassword string) (bool, error)
 }
 
 type hash struct {
-	accountConfigs configs.AccountConfig
+	configs configs.AuthConfig
 }
 
-func NewHashHandler(accountConfigs configs.AccountConfig) HashHandler {
+func NewHashHandler(configs configs.AuthConfig) HashHandler {
 	return &hash{
-		accountConfigs: accountConfigs,
+		configs: configs,
 	}
 }
 
-func (h hash) HashPassword(ctx context.Context, password string) (string, error) {
-	bcryptHash, err := bcrypt.GenerateFromPassword([]byte(password), h.accountConfigs.HashCost)
+func (h hash) Hash(ctx context.Context, password string) (string, error) {
+	bcryptHash, err := bcrypt.GenerateFromPassword([]byte(password), h.configs.HashConfig.HashCost)
 	if err != nil {
 		log.Print("error hashing password:", err)
 		return "", err

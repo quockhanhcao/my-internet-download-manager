@@ -7,4 +7,5 @@ var WireSet = wire.NewSet(
 	InitializeGoquDB,
 	NewAccountDataAccessor,
 	NewAccountPasswordDataAccessor,
+	NewTokenPublicKeyDataAccessor,
 )

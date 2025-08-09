@@ -32,20 +32,26 @@ type AccountHandler interface {
 type accountHandler struct {
 	accountDataAccessor         database.AccountDataAccessor
 	accountPasswordDataAccessor database.AccountPasswordDataAccessor
+	tokenPublicKeyDataAccessor  database.TokenPublicKeyDataAccessor
 	hashHandler                 HashHandler
+	tokenHandler                TokenHandler
 	goquDatabase                *goqu.Database
 }
 
 func NewAccountHandler(
 	accountDataAccessor database.AccountDataAccessor,
 	accountPasswordDataAccessor database.AccountPasswordDataAccessor,
+	tokenPublicKeyDataAccessor database.TokenPublicKeyDataAccessor,
 	hashHandler HashHandler,
+	tokenHandler TokenHandler,
 	goquDatabase *goqu.Database,
 ) AccountHandler {
 	return &accountHandler{
 		accountDataAccessor:         accountDataAccessor,
 		accountPasswordDataAccessor: accountPasswordDataAccessor,
+		tokenPublicKeyDataAccessor:  tokenPublicKeyDataAccessor,
 		hashHandler:                 hashHandler,
+		tokenHandler:                tokenHandler,
 		goquDatabase:                goquDatabase,
 	}
 }
@@ -77,7 +83,7 @@ func (a accountHandler) CreateAccount(ctx context.Context, params CreateAccountP
 			return err
 		}
 
-		hashedPassword, err := a.hashHandler.HashPassword(ctx, params.Password)
+		hashedPassword, err := a.hashHandler.Hash(ctx, params.Password)
 		if err != nil {
 			return err
 		}
@@ -98,7 +104,7 @@ func (a accountHandler) CreateSession(ctx context.Context, params CreateSessionP
 	if err != nil {
 		return "", err
 	}
-	existingPassword, err := a.accountPasswordDataAccessor.GetAccountPasswordByAccountID(ctx, existingAccount.AccountID)
+	existingPassword, err := a.accountPasswordDataAccessor.GetAccountPasswordByAccountID(ctx, existingAccount.ID)
 	if err != nil {
 		return "", err
 	}
@@ -111,5 +117,10 @@ func (a accountHandler) CreateSession(ctx context.Context, params CreateSessionP
 		return "", errors.New("incorrect password")
 	}
 
-	// generate a token
+	// // generate a token
+	// token, expiresIn, err := a.tokenHandler.GetToken(ctx, existingAccount.ID)
+	// if err != nil {
+	// 	return "", err
+	// }
+	return "", nil
 }

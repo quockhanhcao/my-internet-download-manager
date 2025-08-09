@@ -21,7 +21,7 @@ type AccountPassword struct {
 
 type AccountPasswordDataAccessor interface {
 	CreateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error
-	UpdateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error
+	UpdateAccountPassword(ctx context.Context, account AccountPassword) error
 	GetAccountPasswordByAccountID(ctx context.Context, accountID uint64) (AccountPassword, error)
 	WithDatabase(database Database) AccountPasswordDataAccessor
 }
@@ -34,15 +34,22 @@ func NewAccountPasswordDataAccessor(database *goqu.Database) AccountPasswordData
 	return &accountPasswordAccessor{database: database}
 }
 
-func (a *accountPasswordAccessor) UpdateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error {
-	panic("unimplemented")
+func (a accountPasswordAccessor) UpdateAccountPassword(ctx context.Context, account AccountPassword) error {
+	_, err := a.database.Update(TableAccountPassword).Set(goqu.Record{
+		ColHash: account.Hash,
+	}).Where(goqu.Ex{ColOfAccountID: account.OfAccountID}).Executor().ExecContext(ctx)
+	if err != nil {
+		log.Print("error updating account password:", err)
+		return err
+	}
+	return nil
 }
 
 func (a accountPasswordAccessor) CreateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error {
 	_, err := a.database.Insert(TableAccountPassword).Rows(goqu.Record{
 		ColOfAccountID: accountID,
 		ColHash:        passwordHash,
-	}).Executor().Exec()
+	}).Executor().ExecContext(ctx)
 	if err != nil {
 		log.Print("error inserting account password:", err)
 		return err

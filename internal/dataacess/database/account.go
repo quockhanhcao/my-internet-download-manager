@@ -7,8 +7,12 @@ import (
 	"github.com/doug-martin/goqu/v9"
 )
 
+const (
+	TableAccount = "accounts"
+)
+
 type Account struct {
-	AccountID   uint64 `sql:"account_id"`
+	ID          uint64 `sql:"id"`
 	AccountName string `sql:"account_name"`
 }
 
@@ -29,7 +33,7 @@ func NewAccountDataAccessor(database *goqu.Database) AccountDataAccessor {
 }
 
 func (a accountDataAccessor) CreateAccount(ctx context.Context, accountName string, password string) (uint64, error) {
-	result, err := a.database.Insert("accounts").Rows(goqu.Record{
+	result, err := a.database.Insert(TableAccount).Rows(goqu.Record{
 		"account_name": accountName,
 	}).Executor().Exec()
 	if err != nil {
