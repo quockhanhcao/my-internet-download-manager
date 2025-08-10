@@ -3,9 +3,9 @@ package database
 import (
 	"context"
 	"database/sql"
-	"log"
 
 	"github.com/doug-martin/goqu/v9"
+	"go.uber.org/zap"
 )
 
 const (
@@ -26,44 +26,55 @@ type AccountPasswordDataAccessor interface {
 	WithDatabase(database Database) AccountPasswordDataAccessor
 }
 
-type accountPasswordAccessor struct {
+type accountPasswordDataAccessor struct {
 	database Database
+	logger   *zap.Logger
 }
 
-func NewAccountPasswordDataAccessor(database *goqu.Database) AccountPasswordDataAccessor {
-	return &accountPasswordAccessor{database: database}
+func NewAccountPasswordDataAccessor(database *goqu.Database, logger *zap.Logger) AccountPasswordDataAccessor {
+	return &accountPasswordDataAccessor{database: database, logger: logger}
 }
 
-func (a accountPasswordAccessor) UpdateAccountPassword(ctx context.Context, account AccountPassword) error {
+func (a accountPasswordDataAccessor) UpdateAccountPassword(ctx context.Context, account AccountPassword) error {
+	a.logger.With(zap.Uint64("accountID", account.OfAccountID)).Info("updating account password")
+
 	_, err := a.database.Update(TableAccountPassword).Set(goqu.Record{
 		ColHash: account.Hash,
 	}).Where(goqu.Ex{ColOfAccountID: account.OfAccountID}).Executor().ExecContext(ctx)
 	if err != nil {
-		log.Print("error updating account password:", err)
+		a.logger.With(zap.Error(err), zap.Uint64("accountID", account.OfAccountID)).Error("failed to update account password")
 		return err
 	}
+
+	a.logger.With(zap.Uint64("accountID", account.OfAccountID)).Info("account password updated successfully")
 	return nil
 }
 
-func (a accountPasswordAccessor) CreateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error {
+func (a accountPasswordDataAccessor) CreateAccountPassword(ctx context.Context, accountID uint64, passwordHash string) error {
+	a.logger.With(zap.Uint64("accountID", accountID)).Info("creating account password")
+
 	_, err := a.database.Insert(TableAccountPassword).Rows(goqu.Record{
 		ColOfAccountID: accountID,
 		ColHash:        passwordHash,
 	}).Executor().ExecContext(ctx)
 	if err != nil {
-		log.Print("error inserting account password:", err)
+		a.logger.With(zap.Error(err), zap.Uint64("accountID", accountID)).Error("failed to insert account password")
 		return err
 	}
+
+	a.logger.With(zap.Uint64("accountID", accountID)).Info("account password created successfully")
 	return nil
 }
 
-func (a accountPasswordAccessor) WithDatabase(database Database) AccountPasswordDataAccessor {
-	return &accountPasswordAccessor{
+func (a accountPasswordDataAccessor) WithDatabase(database Database) AccountPasswordDataAccessor {
+	return &accountPasswordDataAccessor{
 		database: database,
 	}
 }
 
-func (a accountPasswordAccessor) GetAccountPasswordByAccountID(ctx context.Context, accountID uint64) (AccountPassword, error) {
+func (a accountPasswordDataAccessor) GetAccountPasswordByAccountID(ctx context.Context, accountID uint64) (AccountPassword, error) {
+	a.logger.With(zap.Uint64("accountID", accountID)).Info("getting account password by account ID")
+
 	var password AccountPassword
 	found, err := a.database.From(TableAccountPassword).
 		Select(ColOfAccountID, ColHash).
@@ -71,13 +82,15 @@ func (a accountPasswordAccessor) GetAccountPasswordByAccountID(ctx context.Conte
 		ScanStructContext(ctx, &password)
 
 	if err != nil {
-		log.Print("error getting account password:", err)
+		a.logger.With(zap.Error(err), zap.Uint64("accountID", accountID)).Error("failed to get account password")
 		return AccountPassword{}, err
 	}
 
 	if !found {
+		a.logger.With(zap.Uint64("accountID", accountID)).Warn("account password not found")
 		return AccountPassword{}, sql.ErrNoRows
 	}
 
+	a.logger.With(zap.Uint64("accountID", accountID)).Info("account password retrieved successfully")
 	return password, nil
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/quockhanhcao/my-internet-download-manager/internal/handler"
 	"github.com/quockhanhcao/my-internet-download-manager/internal/handler/grpc"
 	"github.com/quockhanhcao/my-internet-download-manager/internal/logic"
+	"github.com/quockhanhcao/my-internet-download-manager/internal/utils"
 )
 
 // Injectors from wire.go:
@@ -29,24 +30,32 @@ func InitializeGRPCServer(configFilePath configs.ConfigFilePath) (grpc.Server, f
 		return nil, nil, err
 	}
 	goquDatabase := database.InitializeGoquDB(db)
-	accountDataAccessor := database.NewAccountDataAccessor(goquDatabase)
-	accountPasswordDataAccessor := database.NewAccountPasswordDataAccessor(goquDatabase)
-	tokenPublicKeyDataAccessor := database.NewTokenPublicKeyDataAccessor(goquDatabase)
-	authConfig := config.AuthConfig
-	hashHandler := logic.NewHashHandler(authConfig)
-	tokenHandler, err := logic.NewTokenHandler(authConfig, tokenPublicKeyDataAccessor, accountDataAccessor)
+	logConfig := config.LogConfig
+	logger, cleanup2, err := utils.InitializeLogger(logConfig)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	accountHandler := logic.NewAccountHandler(accountDataAccessor, accountPasswordDataAccessor, tokenPublicKeyDataAccessor, hashHandler, tokenHandler, goquDatabase)
+	accountDataAccessor := database.NewAccountDataAccessor(goquDatabase, logger)
+	accountPasswordDataAccessor := database.NewAccountPasswordDataAccessor(goquDatabase, logger)
+	tokenPublicKeyDataAccessor := database.NewTokenPublicKeyDataAccessor(goquDatabase, logger)
+	authConfig := config.AuthConfig
+	hashHandler := logic.NewHashHandler(authConfig, logger)
+	tokenHandler, err := logic.NewTokenHandler(authConfig, tokenPublicKeyDataAccessor, accountDataAccessor, logger)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	accountHandler := logic.NewAccountHandler(accountDataAccessor, accountPasswordDataAccessor, tokenPublicKeyDataAccessor, hashHandler, tokenHandler, goquDatabase, logger)
 	goLoadServiceServer := grpc.NewHandler(accountHandler)
 	server := grpc.NewServer(goLoadServiceServer)
 	return server, func() {
+		cleanup2()
 		cleanup()
 	}, nil
 }
 
 // wire.go:
 
-var WireSet = wire.NewSet(configs.WireSet, dataacess.WireSet, logic.WireSet, handler.WireSet)
+var WireSet = wire.NewSet(configs.WireSet, dataacess.WireSet, logic.WireSet, handler.WireSet, utils.WireSet)
