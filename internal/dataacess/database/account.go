@@ -71,7 +71,7 @@ func (a accountDataAccessor) GetAccountByAccountName(ctx context.Context, accoun
 
 	if !found {
 		a.logger.With(zap.String("accountName", accountName)).Warn("account not found by account name")
-		return Account{}, nil // Return empty struct and nil error when not found
+		return Account{}, nil
 	}
 
 	a.logger.With(zap.Uint64("accountID", account.ID), zap.String("accountName", accountName)).Info("account found by account name")

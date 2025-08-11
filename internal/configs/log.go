@@ -1,6 +1,6 @@
 package configs
 
 type LogConfig struct {
-	Level       string   `mapstructure:"level"`
-	OutputPaths []string `mapstructure:"output_paths"`
+	Level       string   `yaml:"level"`
+	OutputPaths []string `yaml:"output_paths"`
 }

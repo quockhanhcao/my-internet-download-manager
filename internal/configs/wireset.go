@@ -7,4 +7,5 @@ var WireSet = wire.NewSet(
 	wire.FieldsOf(new(Config), "DatabaseConfig"),
 	wire.FieldsOf(new(Config), "AuthConfig"),
 	wire.FieldsOf(new(Config), "LogConfig"),
+    wire.FieldsOf(new(Config), "CacheConfig"),
 )

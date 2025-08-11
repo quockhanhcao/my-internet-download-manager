@@ -10,6 +10,7 @@ import (
 	"github.com/google/wire"
 	"github.com/quockhanhcao/my-internet-download-manager/internal/configs"
 	"github.com/quockhanhcao/my-internet-download-manager/internal/dataacess"
+	"github.com/quockhanhcao/my-internet-download-manager/internal/dataacess/cache"
 	"github.com/quockhanhcao/my-internet-download-manager/internal/dataacess/database"
 	"github.com/quockhanhcao/my-internet-download-manager/internal/handler"
 	"github.com/quockhanhcao/my-internet-download-manager/internal/handler/grpc"
@@ -41,16 +42,28 @@ func InitializeGRPCServer(configFilePath configs.ConfigFilePath) (grpc.Server, f
 	tokenPublicKeyDataAccessor := database.NewTokenPublicKeyDataAccessor(goquDatabase, logger)
 	authConfig := config.AuthConfig
 	hashHandler := logic.NewHashHandler(authConfig, logger)
-	tokenHandler, err := logic.NewTokenHandler(authConfig, tokenPublicKeyDataAccessor, accountDataAccessor, logger)
+	cacheConfig := config.CacheConfig
+	client, cleanup3, err := cache.InitializeRedisClient(cacheConfig, logger)
 	if err != nil {
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
-	accountHandler := logic.NewAccountHandler(accountDataAccessor, accountPasswordDataAccessor, tokenPublicKeyDataAccessor, hashHandler, tokenHandler, goquDatabase, logger)
+	cacheCache := cache.NewRedisClient(client, logger)
+	tokenPublicKeyCache := cache.NewTokenPublicKeyCache(cacheCache, logger)
+	tokenHandler, err := logic.NewTokenHandler(authConfig, tokenPublicKeyDataAccessor, accountDataAccessor, tokenPublicKeyCache, logger)
+	if err != nil {
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	accountNameCache := cache.NewAccountNameCache(cacheCache, logger)
+	accountHandler := logic.NewAccountHandler(accountDataAccessor, accountPasswordDataAccessor, tokenPublicKeyDataAccessor, hashHandler, tokenHandler, goquDatabase, logger, accountNameCache)
 	goLoadServiceServer := grpc.NewHandler(accountHandler)
 	server := grpc.NewServer(goLoadServiceServer)
 	return server, func() {
+		cleanup3()
 		cleanup2()
 		cleanup()
 	}, nil

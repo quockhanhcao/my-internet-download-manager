@@ -21,7 +21,7 @@ type TokenPublicKey struct {
 
 type TokenPublicKeyDataAccessor interface {
 	CreateTokenPublicKey(ctx context.Context, publicKey []byte) (uint64, error)
-	GetTokenPublicKeyByID(ctx context.Context, id uint64) (TokenPublicKey, error)
+	GetTokenPublicKeyByID(ctx context.Context, id uint64) ([]byte, error)
 }
 
 type tokenPublicKeyDataAccessor struct {
@@ -58,7 +58,7 @@ func (t tokenPublicKeyDataAccessor) CreateTokenPublicKey(ctx context.Context, pu
 }
 
 // GetTokenPublicKeyByID implements TokenPublicKeyDataAccessor.
-func (t tokenPublicKeyDataAccessor) GetTokenPublicKeyByID(ctx context.Context, keyID uint64) (TokenPublicKey, error) {
+func (t tokenPublicKeyDataAccessor) GetTokenPublicKeyByID(ctx context.Context, keyID uint64) ([]byte, error) {
 	t.logger.With(zap.Uint64("keyID", keyID)).Info("getting token public key by ID")
 
 	var publicKey TokenPublicKey
@@ -69,14 +69,14 @@ func (t tokenPublicKeyDataAccessor) GetTokenPublicKeyByID(ctx context.Context, k
 
 	if err != nil {
 		t.logger.With(zap.Error(err), zap.Uint64("keyID", keyID)).Error("failed to get token public key")
-		return TokenPublicKey{}, err
+		return nil, err
 	}
 
 	if !found {
 		t.logger.With(zap.Uint64("keyID", keyID)).Warn("token public key not found")
-		return TokenPublicKey{}, sql.ErrNoRows
+		return nil, sql.ErrNoRows
 	}
 
 	t.logger.With(zap.Uint64("keyID", keyID), zap.Int("publicKeyLength", len(publicKey.PublicKey))).Info("token public key retrieved successfully")
-	return publicKey, nil
+	return publicKey.PublicKey, nil
 }

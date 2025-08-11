@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/doug-martin/goqu/v9"
+	"github.com/quockhanhcao/my-internet-download-manager/internal/dataacess/cache"
 	"github.com/quockhanhcao/my-internet-download-manager/internal/dataacess/database"
 	"go.uber.org/zap"
 )
@@ -38,6 +39,7 @@ type accountHandler struct {
 	tokenHandler                TokenHandler
 	goquDatabase                *goqu.Database
 	logger                      *zap.Logger
+	accountNameCache            cache.AccountNameCache
 }
 
 func NewAccountHandler(
@@ -48,6 +50,7 @@ func NewAccountHandler(
 	tokenHandler TokenHandler,
 	goquDatabase *goqu.Database,
 	logger *zap.Logger,
+	accountNameCache cache.AccountNameCache,
 ) AccountHandler {
 	return &accountHandler{
 		accountDataAccessor:         accountDataAccessor,
@@ -57,16 +60,25 @@ func NewAccountHandler(
 		tokenHandler:                tokenHandler,
 		goquDatabase:                goquDatabase,
 		logger:                      logger,
+		accountNameCache:            accountNameCache,
 	}
 }
 
 func (a accountHandler) isAccountExisted(ctx context.Context, accountName string) (bool, error) {
-	_, err := a.accountDataAccessor.GetAccountByAccountName(ctx, accountName)
+	cachedAccountName, err := a.accountNameCache.IsAccountNameTaken(ctx, accountName)
+	if cachedAccountName {
+		return true, nil
+	}
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return false, nil
-		}
+		a.logger.With(zap.Error(err)).Warn("failed to check account name in cache")
+	}
+	_, err = a.accountDataAccessor.GetAccountByAccountName(ctx, accountName)
+	if err != nil {
 		return false, err
+	}
+	err = a.accountNameCache.SetAccountNameTaken(ctx, accountName)
+	if err != nil {
+		a.logger.With(zap.Error(err)).Warn("failed to set account name in cache")
 	}
 	return true, nil
 }
